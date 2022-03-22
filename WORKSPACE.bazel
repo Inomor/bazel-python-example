@@ -1,0 +1,87 @@
+workspace(
+    name = "python_example",
+)
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# ----------------- Gazelle support -------------------
+
+# https://github.com/bazelbuild/rules_python/blob/main/gazelle/README.md
+
+# Depend on Go because Gazelle is written in Go and we compile
+# from source in this example. Possibly in the future rules_python
+# could include precompiled Gazelle binaries?
+
+http_archive(
+    name = "io_bazel_rules_go",
+    sha256 = "d6b2513456fe2229811da7eb67a444be7785f5323c6708b38d851d2b51e54d83",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.30.0/rules_go-v0.30.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.30.0/rules_go-v0.30.0.zip",
+    ],
+)
+
+http_archive(
+    name = "bazel_gazelle",
+    sha256 = "de69a09dc70417580aabf20a28619bb3ef60d038470c7cf8442fafcf627c21cb",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+    ],
+)
+
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
+go_rules_dependencies()
+
+go_register_toolchains(version = "1.17.6")
+
+gazelle_dependencies(go_repository_default_config = "@//:WORKSPACE.bazel")
+
+# ------
+
+# Python support
+
+http_archive(
+    name = "rules_python",
+    sha256 = "a30abdfc7126d497a7698c29c46ea9901c6392d6ed315171a6df5ce433aa4502",
+    strip_prefix = "rules_python-0.6.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/0.6.0.tar.gz",
+)
+
+load("@rules_python//python:pip.bzl", "pip_install")
+
+# There are several competing tools for dependency resolution in
+# Python. rules_python has chosen to support pip, the most common.
+
+# requirements.txt = list of needed packages
+# requirements-lock.txt = transitive closure
+
+# python -m pip install pip-tools
+# pip-compile --generate-hashes --output-file=requirements_lock.txt requirements.txt
+
+# Then, Gazelle Python support requires that gazelle_python_manifest
+# be populated using this command:
+
+# bazel run //app:gazelle_python_manifest.update
+
+# Finally, this updates/creates the BUILD.bazel files:
+# bazel run //:gazelle
+
+# Run pip, create Bazel targets for the packages therein.
+
+# "By default, pip_install uses the system command "python3". This can
+# be overridden by passing the python_interpreter attribute or
+# python_interpreter_target attribute to pip_install."
+
+pip_install(
+    name = "pip",  # Which is also the default. You can have more than one.
+    requirements = "//app:requirements_lock.txt",
+)
+
+# The rules_python gazelle extension has some third-party go dependencies
+# which we need to fetch in order to compile it.
+load("@rules_python//gazelle:deps.bzl", _py_gazelle_deps = "gazelle_deps")
+
+_py_gazelle_deps()
