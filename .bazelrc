@@ -4,3 +4,13 @@ fetch --disk_cache=~/.cache/bazel-disk
 query --disk_cache=~/.cache/bazel-disk
 sync --disk_cache=~/.cache/bazel-disk
 test --disk_cache=~/.cache/bazel-disk
+
+# Bazel doesn't have a native understanding of C++ versions. This was
+# added for Java in 2021; hopefully it might arrive for C++ someday.
+
+build --enable_platform_specific_config
+# linux, macos, windows, freebsd, and openbsd.
+
+build:linux --cxxopt='-std=c++17'
+build:macos --cxxopt='-std=c++17'
+build:windows --cxxopt='-std:c++17' # Note slightly different syntax.
